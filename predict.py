@@ -1,8 +1,7 @@
-# iris_prediction.py
+# iris_prediction_flask.py
 
-# Import necessary libraries
+from flask import Flask, request, jsonify
 import joblib
-import sys
 from sklearn.datasets import load_iris
 
 # Load the Iris dataset to get class names
@@ -13,22 +12,33 @@ class_names = iris.target_names
 model_filename = 'iris_model.joblib'
 clf = joblib.load(model_filename)
 
-# Check if the correct number of command-line arguments is provided
-if len(sys.argv) != 5:
-    print("Usage: python iris_prediction.py sepal_length sepal_width petal_length petal_width")
-    sys.exit(1)
+# Create a Flask web application
+app = Flask(__name__)
 
-# Get input from the terminal arguments
-sepal_length, sepal_width, petal_length, petal_width = map(float, sys.argv[1:5])
+# Define a route for predictions
+@app.route('/predict', methods=['POST'])
+def predict():
+    try:
+        # Get input data from the HTTP request
+        input_data = request.get_json()
 
-# Example input for prediction
-sample_input = [[sepal_length, sepal_width, petal_length, petal_width]]
+        # Make predictions
+        predictions = clf.predict([input_data['data']])
 
-# Make predictions
-predictions = clf.predict(sample_input)
+        # Map class numbers to class names
+        predicted_class_names = [class_names[i] for i in predictions]
 
-# Map class numbers to class names
-predicted_class_names = [class_names[i] for i in predictions]
+        # Prepare the response
+        response = {
+            'prediction': predicted_class_names[0],
+            'confidence': max(clf.predict_proba([input_data['data']])[0])
+        }
 
-# Display the predictions
-print(f"{predicted_class_names}")
+        return jsonify(response)
+
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+# Run the application on port 5000
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
